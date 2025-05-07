@@ -1,44 +1,33 @@
-def read_header(f):
-    """Read PPM header and return magic number, width, height, maxval"""
-    def read_token():
-        while True:
-            line = f.readline()
-            if not line:
-                raise ValueError("Unexpected EOF in header.")
-            line = line.strip()
-            if line.startswith(b'#') or len(line) == 0:
-                continue
-            for token in line.split():
-                yield token
-
-    token_gen = read_token()
-    magic = next(token_gen)
-    width = int(next(token_gen))
-    height = int(next(token_gen))
-    maxval = int(next(token_gen))
-    return magic, width, height, maxval
-
-
 def convert_p6_to_p3(input_path, output_path):
-    with open(input_path, 'rb') as f:
-        magic, width, height, max_val = read_header(f)
+    with open(input_path, "rb") as f:
+        magic_number = f.readline().strip()
+        if magic_number != b'P6':
+            raise ValueError("Not a P6 PPM file.")
 
-        if magic != b'P6':
-            raise ValueError("Not a valid P6 PPM file.")
+        # Skip comments
+        def read_non_comment_line(f):
+            line = f.readline()
+            while line.startswith(b'#'):
+                line = f.readline()
+            return line
 
-        # Read the rest (pixel data)
+        dimensions = read_non_comment_line(f)
+        width, height = map(int, dimensions.strip().split())
+
+        maxval = int(read_non_comment_line(f).strip())
+
         pixel_data = f.read()
-        expected = width * height * 3
-        if len(pixel_data) < expected:
-            raise ValueError(f"Pixel data too short. Expected {expected}, got {len(pixel_data)}")
 
-    with open(output_path, 'w') as out:
+    with open(output_path, "w") as out:
         out.write("P3\n")
         out.write(f"{width} {height}\n")
-        out.write(f"{max_val}\n")
+        out.write(f"{maxval}\n")
 
-        for i in range(0, expected, 3):
-            r = pixel_data[i]
-            g = pixel_data[i + 1]
-            b = pixel_data[i + 2]
+        for i in range(0, len(pixel_data), 3):
+            r, g, b = pixel_data[i], pixel_data[i+1], pixel_data[i+2]
             out.write(f"{r} {g} {b}\n")
+
+if __name__ == "__main__":
+    convert_p6_to_p3("/home/data/colorP6File.ppm", "colorP3File.ppm")
+
+
